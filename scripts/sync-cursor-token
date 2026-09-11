@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Copy a Cursor session token into Scriptable's iCloud folder."""
+
+from __future__ import annotations
+
+import base64
+import json
+import re
+import sqlite3
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Callable, Optional
+
+USAGE_SUMMARY_URL = "https://cursor.com/api/usage-summary"
+COOKIE_HINT = (
+    "Could not update token. Paste WorkosCursorSessionToken from "
+    "cursor.com DevTools → Cookies into iCloud Drive/Scriptable/CursorUsage/token.txt"
+)
+USER_TOKEN_RE = re.compile(r"user_[A-Za-z0-9]+::\S+")
+USER_ID_RE = re.compile(r"user_[A-Za-z0-9]+")
+JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
+AUTH_ID_KEYS = (
+    "cursorAuth/stripeMembershipAuthId",
+    "adminSettings.cachedAuthId",
+    "glass.lastSignedInAuthId",
+)
+
+
+def default_db_path(home: Path) -> Path:
+    return (
+        home
+        / "Library"
+        / "Application Support"
+        / "Cursor"
+        / "User"
+        / "globalStorage"
+        / "state.vscdb"
+    )
+
+
+def token_path_for_home(home: Path) -> Path:
+    return (
+        home
+        / "Library"
+        / "Mobile Documents"
+        / "iCloud~dk~simonbs~Scriptable"
+        / "Documents"
+        / "CursorUsage"
+        / "token.txt"
+    )
+
+
+def _decode(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="ignore")
+    return str(value)
+
+
+def _extract_token(text: str) -> Optional[str]:
+    match = USER_TOKEN_RE.search(text)
+    if match:
+        return match.group(0).strip()
+    match = JWT_RE.search(text)
+    if match:
+        return match.group(0).strip()
+    return None
+
+
+def extract_workos_user_id(text: str) -> Optional[str]:
+    match = USER_ID_RE.search(text)
+    return match.group(0) if match else None
+
+
+def user_id_from_jwt(token: str) -> Optional[str]:
+    parts = token.split(".")
+    if len(parts) < 2:
+        return None
+    try:
+        pad = "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    sub = payload.get("sub")
+    if not isinstance(sub, str):
+        return None
+    return extract_workos_user_id(sub)
+
+
+def to_session_cookie(token: str, user_hint: Optional[str] = None) -> str:
+    token = token.strip()
+    if USER_TOKEN_RE.search(token):
+        return token
+    user_id = user_id_from_jwt(token) or extract_workos_user_id(user_hint or "")
+    if user_id and JWT_RE.search(token):
+        return f"{user_id}::{token}"
+    return token
+
+
+def find_user_id_in_db(db_path: Path) -> Optional[str]:
+    if not db_path.is_file():
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return None
+    try:
+        for key in AUTH_ID_KEYS:
+            row = conn.execute(
+                "SELECT value FROM ItemTable WHERE key = ?", (key,)
+            ).fetchone()
+            if not row:
+                continue
+            user_id = extract_workos_user_id(_decode(row[0]))
+            if user_id:
+                return user_id
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+    return None
+
+
+def find_token_in_db(db_path: Path) -> Optional[str]:
+    if not db_path.is_file():
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return None
+    try:
+        rows = list(conn.execute("SELECT key, value FROM ItemTable"))
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+
+    preferred = None
+    fallback = None
+    for key, value in rows:
+        token = _extract_token(_decode(value))
+        if not token:
+            continue
+        if key == "cursorAuth/accessToken":
+            preferred = token
+            break
+        if fallback is None:
+            fallback = token
+    return preferred or fallback
+
+
+def write_token(path: Path, token: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(token.strip() + "\n", encoding="utf-8")
+
+
+def verify_token(
+    token: str,
+    urlopen: Callable = urllib.request.urlopen,
+) -> str:
+    request = urllib.request.Request(
+        USAGE_SUMMARY_URL,
+        headers={"Cookie": f"WorkosCursorSessionToken={token}"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=10) as resp:
+            status = getattr(resp, "status", 200)
+            if status in (401, 403):
+                return "unauthorized"
+            if 200 <= int(status) < 300:
+                return "ok"
+            return "network"
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            return "unauthorized"
+        return "network"
+    except Exception:
+        return "network"
+
+
+def sync(
+    db_path: Path,
+    token_path: Path,
+    verify_fn: Optional[Callable[[str], str]] = None,
+) -> int:
+    verify = verify_fn or verify_token
+    token = find_token_in_db(db_path)
+    if not token:
+        print(COOKIE_HINT, file=sys.stderr)
+        return 1
+
+    token = to_session_cookie(token, find_user_id_in_db(db_path))
+    status = verify(token)
+    if status == "unauthorized":
+        print(COOKIE_HINT, file=sys.stderr)
+        return 1
+    if status == "network":
+        if token_path.is_file():
+            print(
+                "Could not verify token (network). Left existing token.txt in place.",
+                file=sys.stderr,
+            )
+            print(COOKIE_HINT, file=sys.stderr)
+            return 1
+        write_token(token_path, token)
+        print(
+            "Wrote token without verification (network error). Path: Scriptable/CursorUsage/token.txt"
+        )
+        return 0
+
+    write_token(token_path, token)
+    print("Updated Scriptable/CursorUsage/token.txt")
+    return 0
+
+
+def main() -> int:
+    home = Path.home()
+    return sync(default_db_path(home), token_path_for_home(home))
+
+
+if __name__ == "__main__":
+    sys.exit(main())
