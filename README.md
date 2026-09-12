@@ -36,13 +36,14 @@ Faster:
 ## Tests
 
 ```bash
-node --test tests/parse-usage.test.js
+node --test tests/*.js
 python3 -m unittest tests.test_sync_cursor_token -v
 ```
 
 ## Manual checklist
 
-- [ ] Small: two bars, %, reset date, no on-demand line
+- [ ] Small with on-demand: title `Usage`, bars `Cursor` / `Others`, footer `On-demand $X.XX`, no reset date, labels not clipped
+- [ ] Small without on-demand: footer is reset date `d MMM` (empty footer if `resetAt` is missing)
 - [ ] Medium: two bars, reset + time, on-demand only if Spending shows extra spend
 - [ ] Light and dark Home Screen
 - [ ] Empty/missing token → Add token

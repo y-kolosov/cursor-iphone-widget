@@ -1,4 +1,6 @@
-// CursorUsage — Scriptable widget. KEEP parse helpers in sync with lib/parse-usage.js
+// CursorUsage — Scriptable widget.
+// KEEP parse helpers in sync with lib/parse-usage.js
+// KEEP smallFooter / formatOnDemandUsd in sync with lib/small-footer.js
 
 const USAGE_URL = "https://cursor.com/api/usage-summary";
 const TOKEN_DIR = "CursorUsage";
@@ -107,6 +109,20 @@ function formatTime(iso) {
   return df.string(new Date(iso));
 }
 
+function formatOnDemandUsd(usd) {
+  return `On-demand $${usd.toFixed(2)}`;
+}
+
+function smallFooter(model) {
+  if (model.onDemandUsd != null) {
+    return { kind: "on-demand", text: formatOnDemandUsd(model.onDemandUsd) };
+  }
+  if (typeof model.resetAt === "string" && model.resetAt.length > 0) {
+    return { kind: "reset" };
+  }
+  return { kind: "empty" };
+}
+
 function formatPct(model, key) {
   if (model.unlimited) return "∞";
   const n = model[key];
@@ -200,10 +216,12 @@ function addBar(widget, width, family, label, pctText, pct, unlimited, stale) {
   const name = row.addText(label);
   name.font = Font.systemFont(fontSize);
   name.textColor = stale ? mutedColor() : textColor();
+  name.lineLimit = 1;
   row.addSpacer();
   const value = row.addText(pctText);
   value.font = Font.semiboldSystemFont(fontSize);
   value.textColor = color;
+  value.lineLimit = 1;
 
   widget.addSpacer(4);
   const track = widget.addStack();
@@ -244,15 +262,16 @@ function messageWidget(family, title, subtitle) {
 function usageWidget(family, model, stale) {
   const w = new ListWidget();
   w.backgroundColor = Color.dynamic(Color.white(), new Color("#1c1c1e"));
-  const width = family === "small" ? 128 : 292;
+  const width = family === "small" ? 118 : 292;
   const reset = formatReset(model.resetAt);
   const time = formatTime(model.fetchedAt);
 
   const header = w.addStack();
   header.layoutHorizontally();
-  const title = header.addText(family === "small" ? "Cursor" : "Cursor usage");
+  const title = header.addText(family === "small" ? "Usage" : "Cursor usage");
   title.font = Font.semiboldSystemFont(10);
   title.textColor = mutedColor();
+  title.lineLimit = 1;
   if (family !== "small") {
     header.addSpacer();
     const meta = header.addText(
@@ -286,13 +305,25 @@ function usageWidget(family, model, stale) {
   );
 
   if (family === "small") {
-    w.addSpacer();
-    const foot = w.addText(reset);
-    foot.font = Font.systemFont(10);
-    foot.textColor = mutedColor();
+    const footer = smallFooter(model);
+    if (footer.kind === "on-demand") {
+      w.addSpacer();
+      const od = w.addText(footer.text);
+      od.font = Font.systemFont(10);
+      od.textColor = Color.purple();
+      od.lineLimit = 1;
+    } else if (footer.kind === "reset") {
+      w.addSpacer();
+      const foot = w.addText(reset);
+      foot.font = Font.systemFont(10);
+      foot.textColor = mutedColor();
+      foot.lineLimit = 1;
+    } else {
+      w.addSpacer();
+    }
   } else if (model.onDemandUsd != null) {
     w.addSpacer();
-    const od = w.addText(`On-demand $${model.onDemandUsd.toFixed(2)}`);
+    const od = w.addText(formatOnDemandUsd(model.onDemandUsd));
     od.font = Font.systemFont(12);
     od.textColor = Color.purple();
   } else {

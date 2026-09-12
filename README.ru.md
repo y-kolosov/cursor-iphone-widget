@@ -36,13 +36,14 @@ iOS сама решает, когда перерисовывать виджет�
 ## Тесты
 
 ```bash
-node --test tests/parse-usage.test.js
+node --test tests/*.js
 python3 -m unittest tests.test_sync_cursor_token -v
 ```
 
 ## Ручной чеклист
 
-- [ ] Small: две полоски, %, дата сброса, без строки on-demand
+- [ ] Small с on-demand: заголовок `Usage`, бары `Cursor` / `Others`, футер `On-demand $X.XX`, без даты, подписи не обрезаны
+- [ ] Small без on-demand: в футере дата сброса `d MMM` (пустой футер, если `resetAt` нет)
 - [ ] Medium: две полоски, сброс + время, on-demand только если Spending показывает доп. расход
 - [ ] Светлый и тёмный домашний экран
 - [ ] Пустой/отсутствующий токен → Add token
