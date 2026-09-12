@@ -14,7 +14,7 @@
 - **small** и **medium**
 - процент **Cursor Models** и **Other Models**
 - дата сброса биллинг-цикла
-- сумма on-demand, только если перерасход включён и `used > 0` (на medium всегда снизу; на small — вместо даты, см. [спеку small](./2026-09-12-small-widget-layout-design.md))
+- сумма on-demand, только если перерасход включён и `used > 0` (на medium снизу; на small — в футере, дата тогда уходит в шапку `→ d MMM`, см. [reset-chrome](./2026-09-12-small-widget-reset-chrome-design.md))
 - обновление настолько часто, насколько iOS позволяет (не секундный realtime)
 
 ## Вне скоупа
@@ -98,7 +98,7 @@ Endpoint неофициальный, как у самого дашборда. С
 
 Тёмная/светлая тема через `Color.dynamic`. Подписи на английском, как в Spending: `Cursor Models`, `Other Models`.
 
-**Small** — состав и футер задаёт [2026-09-12-small-widget-layout-design.md](./2026-09-12-small-widget-layout-design.md): заголовок `Usage`, бары `Cursor` / `Others`, в футере on-demand **или** дата сброса.
+**Small** — [раскладка](./2026-09-12-small-widget-layout-design.md) + [шапка/футер с датой](./2026-09-12-small-widget-reset-chrome-design.md): `Usage`, бары `Cursor` / `Others`; при on-demand справа `→ d MMM` и снизу `$`; иначе снизу мета medium.
 
 **Medium**
 
@@ -177,7 +177,7 @@ On-demand цветом пулов не красится.
 ## Критерий готовности
 
 - Скрипт ставится в Scriptable, виджет small и medium показывают те же два процента и дату сброса, что Spending.
-- On-demand виден только при ненулевом перерасходе: на medium снизу, на small в футере вместо даты.
+- On-demand виден только при ненулевом перерасходе: на medium снизу; на small в футере, дата сброса тогда справа как `→ d MMM`.
 - Протухший токен и офлайн ведут себя как в таблице ошибок.
 - Хелпер на маке обновляет `token.txt` или оставляет старый и объясняет cookie.
 - Тесты парсера и хелпера зелёные.

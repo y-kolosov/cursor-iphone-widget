@@ -17,7 +17,7 @@ Small с первого взгляда отвечает: сколько съед
 ## Вне скоупа
 
 - Medium, парсер, токен, кэш, refresh, Shortcut
-- Новые поля (used / limit / remaining, время съёмки на small)
+- Новые поля (used / limit / remaining). Время съёмки на small — только в футере без on-demand, см. reset-chrome.
 - Другая композиция (крупные цифры без баров, смена подписей `Cursor` / `Others`)
 - Lock Screen / WidgetKit
 
@@ -32,12 +32,7 @@ Small с первого взгляда отвечает: сколько съед
 1. Заголовок `Usage` — тот же мелкий приглушённый стиль, что был у `Cursor`.
 2. Бар `Cursor` + целое `%` (или `∞` при `unlimited`).
 3. Бар `Others` + целое `%` (или `∞`).
-4. Одна строка футера:
-   - `onDemandUsd != null` → `On-demand $X.XX` (`toFixed(2)`), фиолетовый, как на medium;
-   - иначе, если есть `resetAt` → `d MMM` (локаль устройства), приглушённый;
-   - иначе пусто, без `$0.00` и без слова `reset`.
-
-Времени съёмки на small нет.
+4. Шапка справа и футер — [2026-09-12-small-widget-reset-chrome-design.md](./2026-09-12-small-widget-reset-chrome-design.md): при on-demand справа `→ d MMM`, снизу `$`; без on-demand справа пусто, снизу та же мета, что у medium (`reset d MMM · HH:mm`).
 
 Подписи баров на small остаются `Cursor` и `Others`. Полные `Cursor Models` / `Other Models` — только medium.
 
@@ -49,13 +44,13 @@ Small с первого взгляда отвечает: сколько съед
 
 ## Данные
 
-Та же `UsageModel`. Правило on-demand не меняется: поле не `null` только если `enabled === true` и `used > 0`. Small и medium читают одно поле; разница только в том, что small в футере **заменяет** дату on-demand, а medium показывает дату в шапке и on-demand снизу независимо.
+Та же `UsageModel`. Правило on-demand не меняется: поле не `null` только если `enabled === true` и `used > 0`. Small и medium читают одно поле. Где small рисует дату — в [reset-chrome](./2026-09-12-small-widget-reset-chrome-design.md).
 
 ## Ошибки и stale
 
 Без модели — как сейчас, одно сообщение, без баров: `Add token`, `Token expired`, `Can't parse`, `Offline`.
 
-Stale (кэш): проценты приглушённые. Футер тот же (on-demand или дата). On-demand остаётся фиолетовым, дата — приглушённой. Время съёмки на small не появляется.
+Stale (кэш): проценты приглушённые. On-demand фиолетовый. Дата/мета — как в [reset-chrome](./2026-09-12-small-widget-reset-chrome-design.md).
 
 Unlimited: `∞` вместо `%`, футер по тем же правилам.
 
@@ -73,8 +68,8 @@ Unlimited: `∞` вместо `%`, футер по тем же правилам.
 
 Ручной чеклист:
 
-- [ ] Small с on-demand > 0: `Usage`, `Cursor`, `Others`, футер `On-demand $X.XX`, даты нет
-- [ ] Small без on-demand: в футере дата `d MMM`
+- [ ] Small с on-demand: справа `→ d MMM`, снизу `On-demand $X.XX` (см. спеку reset-chrome)
+- [ ] Small без on-demand: справа пусто, снизу `reset d MMM · HH:mm`
 - [ ] Small, нет `resetAt` и нет on-demand: футер пустой
 - [ ] Подписи не обрезаны и не склеены
 - [ ] Medium без изменений: шапка `reset … · HH:mm`, снизу on-demand если есть
@@ -85,6 +80,6 @@ Unlimited: `∞` вместо `%`, футер по тем же правилам.
 ## Критерий готовности
 
 - Small показывает оба процента и on-demand, когда он есть.
-- Small без on-demand показывает дату сброса, не пустой футер (если дата есть).
+- Small без on-demand показывает в футере мету medium (`reset d MMM · HH:mm`), не голое `d MMM`.
 - Заголовок `Usage`, подписи `Cursor` / `Others` читаются целиком.
 - Medium, парсер и токен ведут себя как раньше.
