@@ -42,8 +42,8 @@ python3 -m unittest tests.test_sync_cursor_token -v
 
 ## Manual checklist
 
-- [ ] Small with on-demand: title `Usage`, bars `Cursor` / `Others`, footer `On-demand $X.XX`, no reset date, labels not clipped
-- [ ] Small without on-demand: footer is reset date `d MMM` (empty footer if `resetAt` is missing)
+- [ ] Small with on-demand: title `Usage`, right header `→ d MMM` (unicode arrow), footer `On-demand $X.XX`, no `reset` in the footer, labels not clipped
+- [ ] Small without on-demand: right header empty, footer matches medium header (`reset d MMM · HH:mm`; time only if date missing)
 - [ ] Medium: two bars, reset + time, on-demand only if Spending shows extra spend
 - [ ] Light and dark Home Screen
 - [ ] Empty/missing token → Add token

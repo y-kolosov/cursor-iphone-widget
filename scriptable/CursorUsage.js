@@ -1,6 +1,6 @@
 // CursorUsage — Scriptable widget.
 // KEEP parse helpers in sync with lib/parse-usage.js
-// KEEP smallFooter / formatOnDemandUsd in sync with lib/small-footer.js
+// KEEP smallFooter / formatOnDemandUsd / formatResetBadge / formatMediumMeta in sync with lib/small-footer.js
 
 const USAGE_URL = "https://cursor.com/api/usage-summary";
 const TOKEN_DIR = "CursorUsage";
@@ -121,6 +121,15 @@ function smallFooter(model) {
     return { kind: "reset" };
   }
   return { kind: "empty" };
+}
+
+function formatResetBadge(reset) {
+  if (typeof reset !== "string" || reset.length === 0) return "";
+  return `→ ${reset}`;
+}
+
+function formatMediumMeta(reset, time) {
+  return [reset ? `reset ${reset}` : "", time || ""].filter(Boolean).join(" · ");
 }
 
 function formatPct(model, key) {
@@ -265,6 +274,8 @@ function usageWidget(family, model, stale) {
   const width = family === "small" ? 118 : 292;
   const reset = formatReset(model.resetAt);
   const time = formatTime(model.fetchedAt);
+  const meta = formatMediumMeta(reset, time);
+  const onDemand = model.onDemandUsd != null;
 
   const header = w.addStack();
   header.layoutHorizontally();
@@ -272,13 +283,17 @@ function usageWidget(family, model, stale) {
   title.font = Font.semiboldSystemFont(10);
   title.textColor = mutedColor();
   title.lineLimit = 1;
-  if (family !== "small") {
+  const headerRight = family === "small"
+    ? onDemand
+      ? formatResetBadge(reset)
+      : ""
+    : meta;
+  if (headerRight) {
     header.addSpacer();
-    const meta = header.addText(
-      [reset ? `reset ${reset}` : "", time].filter(Boolean).join(" · ")
-    );
-    meta.font = Font.systemFont(10);
-    meta.textColor = mutedColor();
+    const side = header.addText(headerRight);
+    side.font = Font.systemFont(10);
+    side.textColor = mutedColor();
+    side.lineLimit = 1;
   }
 
   w.addSpacer(10);
@@ -305,23 +320,22 @@ function usageWidget(family, model, stale) {
   );
 
   if (family === "small") {
-    const footer = smallFooter(model);
-    if (footer.kind === "on-demand") {
+    if (onDemand) {
       w.addSpacer();
-      const od = w.addText(footer.text);
+      const od = w.addText(formatOnDemandUsd(model.onDemandUsd));
       od.font = Font.systemFont(10);
       od.textColor = Color.purple();
       od.lineLimit = 1;
-    } else if (footer.kind === "reset") {
+    } else if (meta) {
       w.addSpacer();
-      const foot = w.addText(reset);
+      const foot = w.addText(meta);
       foot.font = Font.systemFont(10);
       foot.textColor = mutedColor();
       foot.lineLimit = 1;
     } else {
       w.addSpacer();
     }
-  } else if (model.onDemandUsd != null) {
+  } else if (onDemand) {
     w.addSpacer();
     const od = w.addText(formatOnDemandUsd(model.onDemandUsd));
     od.font = Font.systemFont(12);

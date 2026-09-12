@@ -42,8 +42,8 @@ python3 -m unittest tests.test_sync_cursor_token -v
 
 ## Ручной чеклист
 
-- [ ] Small с on-demand: заголовок `Usage`, бары `Cursor` / `Others`, футер `On-demand $X.XX`, без даты, подписи не обрезаны
-- [ ] Small без on-demand: в футере дата сброса `d MMM` (пустой футер, если `resetAt` нет)
+- [ ] Small с on-demand: заголовок `Usage`, справа `→ d MMM` (юникод-стрелка), футер `On-demand $X.XX`, внизу нет `reset`, подписи не обрезаны
+- [ ] Small без on-demand: справа пусто, футер как шапка medium (`reset d MMM · HH:mm`; только время, если даты нет)
 - [ ] Medium: две полоски, сброс + время, on-demand только если Spending показывает доп. расход
 - [ ] Светлый и тёмный домашний экран
 - [ ] Пустой/отсутствующий токен → Add token
